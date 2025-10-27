@@ -154,9 +154,12 @@ If a field is missing, leave it blank.`;
     setSuccess('');
 
     try {
-      // Use relative URL in production, localhost in development
-      const API_URL = import.meta.env.VITE_API_URL || (import.meta.env.DEV ? 'http://localhost:3001' : '');
-      const response = await fetch(`${API_URL}/api/save-to-sheets`, {
+      // In development: use localhost:3001, in production: use relative URL
+      const isDevelopment = import.meta.env.DEV;
+      const apiBaseUrl = isDevelopment ? 'http://localhost:3001' : '';
+      const apiUrl = `${apiBaseUrl}/api/save-to-sheets`;
+      
+      const response = await fetch(apiUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
