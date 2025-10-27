@@ -26,9 +26,11 @@ Deno.serve(async (req: Request) => {
   }
 
   try {
-    const { cardData } = await req.json();
+    const payload = await req.json();
+    const cards = (payload?.cards as CardData[] | undefined) || undefined;
+    const cardData = (payload?.cardData as CardData | undefined) || undefined;
 
-    if (!cardData) {
+    if ((!cards || cards.length === 0) && !cardData) {
       return new Response(
         JSON.stringify({ error: "Card data is required" }),
         {
@@ -135,18 +137,18 @@ Deno.serve(async (req: Request) => {
 
     const { access_token } = await tokenResponse.json();
 
-    const data_typed: CardData = cardData;
-    const rowData = [
-      data_typed.name || "",
-      data_typed.company || "",
-      data_typed.job_title || "",
-      data_typed.email || "",
-      data_typed.phone || "",
-      data_typed.website || "",
-      data_typed.address || "",
-      data_typed.social_links?.join(", ") || "",
+    const inputList: CardData[] = cards && cards.length > 0 ? cards : [cardData as CardData];
+    const rows = inputList.map((d) => [
+      d?.name || "",
+      d?.company || "",
+      d?.job_title || "",
+      d?.email || "",
+      d?.phone || "",
+      d?.website || "",
+      d?.address || "",
+      Array.isArray(d?.social_links) ? d.social_links.join(", ") : "",
       new Date().toISOString(),
-    ];
+    ]);
 
     const appendResponse = await fetch(
       `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/Sheet1!A:I:append?valueInputOption=USER_ENTERED`,
@@ -157,7 +159,7 @@ Deno.serve(async (req: Request) => {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          values: [rowData],
+          values: rows,
         }),
       }
     );
@@ -178,7 +180,7 @@ Deno.serve(async (req: Request) => {
     }
 
     return new Response(
-      JSON.stringify({ success: true, message: "Data saved to Google Sheets successfully" }),
+      JSON.stringify({ success: true, message: `${rows.length} row${rows.length > 1 ? 's' : ''} saved to Google Sheets successfully` }),
       {
         headers: {
           ...corsHeaders,
