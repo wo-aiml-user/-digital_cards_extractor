@@ -154,10 +154,8 @@ If a field is missing, leave it blank.`;
     setSuccess('');
 
     try {
-      // In development: use localhost:3001, in production: use relative URL
-      const isDevelopment = import.meta.env.DEV;
-      const apiBaseUrl = isDevelopment ? 'http://localhost:3001' : '';
-      const apiUrl = `${apiBaseUrl}/api/save-to-sheets`;
+      // Use relative URL for API endpoint (works with Vercel serverless functions)
+      const apiUrl = '/api/save-to-sheets';
       
       const response = await fetch(apiUrl, {
         method: 'POST',
