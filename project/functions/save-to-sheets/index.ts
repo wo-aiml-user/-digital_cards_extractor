@@ -152,17 +152,19 @@ Deno.serve(async (req: Request) => {
 
     const appendResponse = await fetch(
   `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/cards_details!A1:append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS`,
-      {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${access_token}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          values: rows,
-        }),
-      }
-    );
+  {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${access_token}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      majorDimension: "ROWS", // <-- ensures vertical orientation
+      values: rows,           // each inner array becomes a new row
+    }),
+  }
+);
+
 
     if (!appendResponse.ok) {
       const errorText = await appendResponse.text();
