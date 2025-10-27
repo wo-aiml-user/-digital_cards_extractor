@@ -1,30 +1,7 @@
 const { google } = require('googleapis');
 
-const SCOPES = [
-  'https://www.googleapis.com/auth/spreadsheets',
-  'https://www.googleapis.com/auth/drive'
-];
-
-// Initialize Google Sheets client
-function initializeSheetsClient() {
-  try {
-    // Parse service account from environment variable
-    const serviceAccount = JSON.parse(process.env.GOOGLE_SERVICE_ACCOUNT);
-    
-    const auth = new google.auth.GoogleAuth({
-      credentials: serviceAccount,
-      scopes: SCOPES,
-    });
-
-    const sheetsClient = google.sheets({ version: 'v4', auth });
-    const driveClient = google.drive({ version: 'v3', auth });
-    
-    return { sheetsClient, driveClient };
-  } catch (error) {
-    console.error('Failed to initialize Google Sheets client:', error.message);
-    throw error;
-  }
-}
+// In-memory session store (use a database in production)
+const sessions = {};
 
 module.exports = async function handler(req, res) {
   // Enable CORS
@@ -46,54 +23,37 @@ module.exports = async function handler(req, res) {
   }
 
   try {
+    // Check authentication
+    const sessionId = req.cookies?.sessionId || req.headers.cookie?.match(/sessionId=([^;]+)/)?.[1];
+    
+    if (!sessionId || !sessions[sessionId]) {
+      return res.status(401).json({ error: 'Not authenticated. Please sign in.' });
+    }
+
+    const session = sessions[sessionId];
     const { cards } = req.body;
 
     if (!cards || cards.length === 0) {
       return res.status(400).json({ error: 'No cards provided' });
     }
 
-    const { sheetsClient, driveClient } = initializeSheetsClient();
+    // Get user's spreadsheet ID from session
+    const spreadsheetId = session.spreadsheetId;
 
-    const spreadsheetName = 'cards_details';
-    
-    // Find or create spreadsheet
-    let spreadsheetId;
-    
-    const fileList = await driveClient.files.list({
-      q: `name='${spreadsheetName}' and mimeType='application/vnd.google-apps.spreadsheet' and trashed=false`,
-      fields: 'files(id, name)',
-    });
-
-    if (fileList.data.files && fileList.data.files.length > 0) {
-      spreadsheetId = fileList.data.files[0].id;
-    } else {
-      // Create new spreadsheet
-      const createResponse = await sheetsClient.spreadsheets.create({
-        requestBody: {
-          properties: {
-            title: spreadsheetName,
-          },
-          sheets: [
-            {
-              properties: {
-                title: 'Sheet1',
-              },
-            },
-          ],
-        },
-      });
-      spreadsheetId = createResponse.data.spreadsheetId;
-
-      // Add headers
-      await sheetsClient.spreadsheets.values.update({
-        spreadsheetId,
-        range: 'Sheet1!A1:I1',
-        valueInputOption: 'RAW',
-        requestBody: {
-          values: [['Name', 'Company', 'Job Title', 'Email', 'Phone', 'Website', 'Address', 'Social Links', 'Timestamp']],
-        },
-      });
+    if (!spreadsheetId) {
+      return res.status(500).json({ error: 'User spreadsheet not found' });
     }
+
+    // Recreate OAuth client from session tokens
+    const oauth2Client = new google.auth.OAuth2(
+      '1062550229129-81opr2ult1q4a3a6ummg9ooil14l35l8.apps.googleusercontent.com',
+      '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',
+      'https://digital-cards-extractor.vercel.app/api/oauth2callback'
+    );
+    
+    oauth2Client.setCredentials(session.tokens);
+    
+    const sheets = google.sheets({ version: 'v4', auth: oauth2Client });
 
     // Prepare all rows
     const rows = cards.map(card => [
@@ -109,7 +69,7 @@ module.exports = async function handler(req, res) {
     ]);
 
     // Append all cards at once
-    await sheetsClient.spreadsheets.values.append({
+    await sheets.spreadsheets.values.append({
       spreadsheetId,
       range: 'Sheet1!A:I',
       valueInputOption: 'RAW',
