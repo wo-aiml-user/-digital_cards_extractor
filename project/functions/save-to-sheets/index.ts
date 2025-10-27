@@ -151,7 +151,7 @@ Deno.serve(async (req: Request) => {
     ]);
 
     const appendResponse = await fetch(
-      `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/cards_details:append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS`,
+  `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/cards_details!A1:append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS`,
       {
         method: "POST",
         headers: {
