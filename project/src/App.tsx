@@ -154,7 +154,8 @@ If a field is missing, leave it blank.`;
     setSuccess('');
 
     try {
-      const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+      // Use relative URL in production, localhost in development
+      const API_URL = import.meta.env.VITE_API_URL || (import.meta.env.DEV ? 'http://localhost:3001' : '');
       const response = await fetch(`${API_URL}/api/save-to-sheets`, {
         method: 'POST',
         headers: {
