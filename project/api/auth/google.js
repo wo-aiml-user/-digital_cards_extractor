@@ -1,6 +1,6 @@
 const { google } = require('googleapis');
 
-export default async function handler(req, res) {
+module.exports = async function handler(req, res) {
   const oauth2Client = new google.auth.OAuth2(
     '1062550229129-81opr2ult1q4a3a6ummg9ooil14l35l8.apps.googleusercontent.com',
     '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',

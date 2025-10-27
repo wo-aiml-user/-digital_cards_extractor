@@ -2,7 +2,7 @@
 // Note: This should be shared across all serverless functions
 const sessions = {};
 
-export default async function handler(req, res) {
+module.exports = async function handler(req, res) {
   try {
     const sessionId = req.cookies?.sessionId || req.headers.cookie?.match(/sessionId=([^;]+)/)?.[1];
 

@@ -1,6 +1,7 @@
 const { google } = require('googleapis');
 
 // In-memory session store (use a database in production)
+// Note: This won't persist across serverless function invocations
 const sessions = {};
 
 module.exports = async function handler(req, res) {
