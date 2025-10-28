@@ -48,13 +48,76 @@ const oauth2Client = new google.auth.OAuth2(
   REDIRECT_URI
 );
 
+// Add to Contacts Route
+app.post('/api/add-to-contacts', verifySession, async (req, res) => {
+  try {
+    const { cardData } = req.body;
+
+    // Ensure session and tokens exist (verifySession middleware already checked session validity)
+    if (!req.session || !req.session.tokens) {
+      return res.status(401).json({ error: 'Not authenticated' });
+    }
+
+    // Recreate OAuth client from session tokens
+    const client = new google.auth.OAuth2(
+      '1062550229129-81opr2ult1q4a3a6ummg9ooil14l35l8.apps.googleusercontent.com',
+      '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',
+      REDIRECT_URI
+    );
+    client.setCredentials(req.session.tokens);
+
+    const people = google.people({ version: 'v1', auth: client });
+
+    const contact = {
+      names: [{
+        givenName: cardData.name || '',
+        familyName: ''
+      }],
+      phoneNumbers: cardData.phone ? [{
+        value: cardData.phone,
+        type: 'work'
+      }] : [],
+      emailAddresses: cardData.email ? [{
+        value: cardData.email,
+        type: 'work'
+      }] : [],
+      organizations: cardData.company ? [{
+        name: cardData.company,
+        title: cardData.title || ''
+      }] : [],
+      addresses: cardData.address ? [{
+        streetAddress: cardData.address,
+        type: 'work'
+      }] : [],
+      urls: cardData.website ? [{
+        value: cardData.website,
+        type: 'work'
+      }] : []
+    };
+
+    const createResponse = await people.people.createContact({
+      requestBody: contact
+    });
+
+    res.json({ 
+      success: true, 
+      message: 'Contact added to Google Contacts',
+      contactId: createResponse.data.resourceName
+    });
+  } catch (error) {
+    console.error('Error adding to contacts:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // OAuth Routes
 app.get('/api/auth/google', (req, res) => {
   const scopes = [
     'https://www.googleapis.com/auth/userinfo.email',
     'https://www.googleapis.com/auth/userinfo.profile',
     'https://www.googleapis.com/auth/spreadsheets',
-    'https://www.googleapis.com/auth/drive'
+    'https://www.googleapis.com/auth/drive',
+    'https://www.googleapis.com/auth/contacts'
   ];
 
   const authUrl = oauth2Client.generateAuthUrl({
@@ -148,12 +211,15 @@ app.get('/api/oauth2callback', async (req, res) => {
     // Redirect to frontend with session ID as cookie
     res.cookie('sessionId', sessionId, {
       httpOnly: true,
-      secure: true,
-      sameSite: 'none',
+      // Use secure cookies in production only (localhost over HTTP cannot use secure cookies)
+      secure: process.env.NODE_ENV === 'production',
+      // sameSite none is required for cross-site cookies in production, but use lax for local dev
+      sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
       maxAge: 30 * 24 * 60 * 60 * 1000 // 30 days
     });
     
-    res.redirect(process.env.FRONTEND_URL || 'https://digital-cards-extractor.vercel.app');
+    // Redirect back to frontend (use local frontend URL in development)
+    res.redirect(process.env.FRONTEND_URL || 'http://localhost:5173');
   } catch (error) {
     console.error('OAuth callback error:', error);
     res.status(500).send('Authentication failed: ' + error.message);

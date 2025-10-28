@@ -4,14 +4,35 @@ const { google } = require('googleapis');
 // Note: This won't persist across serverless function invocations
 const sessions = {};
 
+// Middleware to parse JSON body
+const parseJsonBody = (req, res) => {
+  return new Promise((resolve) => {
+    let body = '';
+    req.on('data', chunk => {
+      body += chunk.toString();
+    });
+    req.on('end', () => {
+      try {
+        if (body) {
+          req.body = JSON.parse(body);
+        }
+        resolve();
+      } catch (error) {
+        console.error('Error parsing JSON:', error);
+        res.status(400).json({ error: 'Invalid JSON in request body' });
+      }
+    });
+  });
+};
+
 module.exports = async function handler(req, res) {
   // Enable CORS
-  res.setHeader('Access-Control-Allow-Credentials', true);
-  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Credentials', 'true');
+  res.setHeader('Access-Control-Allow-Origin', req.headers.origin || '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,PATCH,DELETE,POST,PUT');
   res.setHeader(
     'Access-Control-Allow-Headers',
-    'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version'
+    'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version, Authorization'
   );
 
   if (req.method === 'OPTIONS') {
@@ -21,6 +42,15 @@ module.exports = async function handler(req, res) {
 
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
+  }
+
+  // Parse JSON body
+  try {
+    await parseJsonBody(req, res);
+    if (res.headersSent) return; // If there was an error in parseJsonBody
+  } catch (error) {
+    console.error('Error parsing request:', error);
+    return res.status(400).json({ error: 'Error parsing request body' });
   }
 
   try {
