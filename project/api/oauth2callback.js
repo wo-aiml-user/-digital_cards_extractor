@@ -13,11 +13,11 @@ module.exports = async function handler(req, res) {
     }
 
     // Get credentials from environment
-    const clientId = process.env.GOOGLE_CLIENT_ID || '1062550229129-81opr2ult1q4a3a6ummg9ooil14l35l8.apps.googleusercontent.com';
-    const clientSecret = process.env.GOOGLE_CLIENT_SECRET || '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';
-    const redirectUri = process.env.VERCEL_URL 
-      ? `https://${process.env.VERCEL_URL}/api/oauth2callback`
-      : 'https://digital-cards-extractor.vercel.app/api/oauth2callback';
+    const clientId = process.env.GOOGLE_CLIENT_ID;
+    const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
+    
+    // Use production domain from environment or fallback
+    const redirectUri = process.env.OAUTH_REDIRECT_URI;
 
     const oauth2Client = new google.auth.OAuth2(
       clientId,
