@@ -61,7 +61,7 @@ module.exports = async function handler(req, res) {
     const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
     
     // Use production domain from environment or fallback
-    const redirectUri = process.env.OAUTH_REDIRECT_URI || 'https://digital-cards-extractor.vercel.app/api/oauth2callback';
+    const redirectUri = process.env.OAUTH_REDIRECT_URI;
 
     // Recreate OAuth client from session tokens
     const oauth2Client = new google.auth.OAuth2(
