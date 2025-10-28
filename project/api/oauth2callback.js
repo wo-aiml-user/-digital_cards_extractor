@@ -12,10 +12,17 @@ module.exports = async function handler(req, res) {
       return res.status(400).send('No authorization code provided');
     }
 
+    // Get credentials from environment
+    const clientId = process.env.GOOGLE_CLIENT_ID || '1062550229129-81opr2ult1q4a3a6ummg9ooil14l35l8.apps.googleusercontent.com';
+    const clientSecret = process.env.GOOGLE_CLIENT_SECRET || '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';
+    const redirectUri = process.env.VERCEL_URL 
+      ? `https://${process.env.VERCEL_URL}/api/oauth2callback`
+      : 'https://digital-cards-extractor.vercel.app/api/oauth2callback';
+
     const oauth2Client = new google.auth.OAuth2(
-      '1062550229129-81opr2ult1q4a3a6ummg9ooil14l35l8.apps.googleusercontent.com',
-      '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',
-      'https://digital-cards-extractor.vercel.app/api/oauth2callback'
+      clientId,
+      clientSecret,
+      redirectUri
     );
 
     const { tokens } = await oauth2Client.getToken(code);
@@ -77,12 +84,34 @@ module.exports = async function handler(req, res) {
     }
 
     sessionData.spreadsheetId = spreadsheetId;
-    sessions[sessionId] = sessionData;
-
-    // Store session in cookie
-    res.setHeader('Set-Cookie', `sessionId=${sessionId}; HttpOnly; Secure; SameSite=None; Max-Age=${30 * 24 * 60 * 60}; Path=/`);
     
-    return res.redirect('https://digital-cards-extractor.vercel.app');
+    // Store all session data in encrypted cookie (since in-memory doesn't persist on Vercel)
+    // Base64 encode the session data
+    const sessionDataJson = JSON.stringify(sessionData);
+    const sessionDataBase64 = Buffer.from(sessionDataJson).toString('base64');
+    
+    // Store as cookie (without HttpOnly so we can read it in client-side if needed)
+    res.setHeader('Set-Cookie', `userData=${sessionDataBase64}; Secure; SameSite=None; Max-Age=${30 * 24 * 60 * 60}; Path=/`);
+    
+    // Close the popup window and redirect parent
+    const html = `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>Authentication Complete</title>
+        </head>
+        <body>
+          <script>
+            // Send message to parent window
+            window.opener.postMessage('auth_success', '*');
+            window.close();
+          </script>
+        </body>
+      </html>
+    `;
+    
+    res.setHeader('Content-Type', 'text/html');
+    return res.send(html);
   } catch (error) {
     console.error('OAuth callback error:', error);
     return res.status(500).send('Authentication failed: ' + error.message);

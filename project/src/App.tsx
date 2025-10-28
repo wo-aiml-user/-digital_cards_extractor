@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Upload, Loader2, CheckCircle, AlertCircle, X, Trash2, LogOut } from 'lucide-react';
+import { Upload, Loader2, CheckCircle, AlertCircle, X, Trash2 } from 'lucide-react';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 
 interface CardData {
@@ -42,13 +42,20 @@ function App() {
   // Check if user is authenticated on component mount
   useEffect(() => {
     checkAuth();
+
+    // Listen for auth success message from OAuth popup
+    const handleMessage = (event: MessageEvent) => {
+      if (event.data === 'auth_success') {
+        checkAuth();
+      }
+    };
+
+    window.addEventListener('message', handleMessage);
+    return () => window.removeEventListener('message', handleMessage);
   }, []);
 
   // API base URL - use local server in development  
   const API_BASE_URL = import.meta.env.DEV ? 'http://localhost:3001' : '';
-  
-  // Store API_BASE_URL in a way that persists across renders
-  const getApiUrl = (endpoint: string) => `${API_BASE_URL}${endpoint}`;
 
   const checkAuth = async () => {
     try {
@@ -92,20 +99,6 @@ function App() {
         }, 1000);
       }
     }, 1000);
-  };
-
-  const handleLogout = async () => {
-    try {
-      await fetch(`${API_BASE_URL}/api/logout`, {
-        method: 'POST',
-        credentials: 'include'
-      });
-      setUser(null);
-      setProcessedCards([]);
-      setShowSignInModal(true);
-    } catch (err) {
-      console.error('Logout error:', err);
-    }
   };
 
   const processImage = async (file: File): Promise<{ previewUrl: string; data: CardData }> => {
@@ -313,13 +306,6 @@ If a field is missing, leave it blank.`;
                     <p className="text-xs text-slate-500">{user.email}</p>
                   </div>
                 </div>
-                <button
-                  onClick={handleLogout}
-                  className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
-                >
-                  <LogOut className="w-4 h-4" />
-                  <span className="hidden sm:inline">Logout</span>
-                </button>
               </div>
             )}
           </div>

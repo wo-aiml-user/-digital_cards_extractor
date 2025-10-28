@@ -24,14 +24,25 @@ module.exports = async function handler(req, res) {
   }
 
   try {
-    // Check authentication
-    const sessionId = req.cookies?.sessionId || req.headers.cookie?.match(/sessionId=([^;]+)/)?.[1];
-    
-    if (!sessionId || !sessions[sessionId]) {
+    // Parse cookies
+    const cookies = {};
+    if (req.headers.cookie) {
+      req.headers.cookie.split(';').forEach(cookie => {
+        const parts = cookie.trim().split('=');
+        cookies[parts[0]] = parts[1];
+      });
+    }
+
+    const userDataCookie = cookies.userData;
+
+    if (!userDataCookie) {
       return res.status(401).json({ error: 'Not authenticated. Please sign in.' });
     }
 
-    const session = sessions[sessionId];
+    // Decode session data from cookie
+    const sessionDataJson = Buffer.from(userDataCookie, 'base64').toString('utf8');
+    const session = JSON.parse(sessionDataJson);
+    
     const { cards } = req.body;
 
     if (!cards || cards.length === 0) {
@@ -45,11 +56,18 @@ module.exports = async function handler(req, res) {
       return res.status(500).json({ error: 'User spreadsheet not found' });
     }
 
+    // Get credentials from environment
+    const clientId = process.env.GOOGLE_CLIENT_ID;
+    const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
+    const redirectUri = process.env.VERCEL_URL 
+      ? `https://${process.env.VERCEL_URL}/api/oauth2callback`
+      : 'https://digital-cards-extractor.vercel.app/api/oauth2callback';
+
     // Recreate OAuth client from session tokens
     const oauth2Client = new google.auth.OAuth2(
-      '1062550229129-81opr2ult1q4a3a6ummg9ooil14l35l8.apps.googleusercontent.com',
-      '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',
-      'https://digital-cards-extractor.vercel.app/api/oauth2callback'
+      clientId,
+      clientSecret,
+      redirectUri
     );
     
     oauth2Client.setCredentials(session.tokens);

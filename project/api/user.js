@@ -1,17 +1,25 @@
-// In-memory session store (use a database in production)
-// Note: This should be shared across all serverless functions
-const sessions = {};
-
 module.exports = async function handler(req, res) {
   try {
-    const sessionId = req.cookies?.sessionId || req.headers.cookie?.match(/sessionId=([^;]+)/)?.[1];
+    // Parse cookies manually
+    const cookies = {};
+    if (req.headers.cookie) {
+      req.headers.cookie.split(';').forEach(cookie => {
+        const parts = cookie.trim().split('=');
+        cookies[parts[0]] = parts[1];
+      });
+    }
 
-    if (!sessionId || !sessions[sessionId]) {
+    const userDataCookie = cookies.userData;
+
+    if (!userDataCookie) {
       return res.status(401).json({ error: 'Not authenticated' });
     }
 
-    const session = sessions[sessionId];
-    const { userId, email, name, picture, spreadsheetId } = session;
+    // Decode base64 session data
+    const sessionDataJson = Buffer.from(userDataCookie, 'base64').toString('utf8');
+    const sessionData = JSON.parse(sessionDataJson);
+    
+    const { userId, email, name, picture, spreadsheetId } = sessionData;
 
     return res.json({
       userId,
