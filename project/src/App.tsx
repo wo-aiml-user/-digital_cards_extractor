@@ -775,13 +775,7 @@ If a field is missing, leave it blank.`;
             <div className="mt-8">
               <h3 className="text-lg font-semibold text-slate-800 mb-4">Your Cards ({listedCards.length})</h3>
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                {listedCards.map((card, index) => {
-                  // Skip cards with template data
-                  const isTemplate = card.data?.name === 'YOUR NAME' || 
-                                   card.data?.email === 'your email goes here';
-                  if (isTemplate) return null;
-                  
-                  return (
+                {listedCards.map((card, index) => (
                     <div key={card.id || index} className="bg-white p-4 rounded-lg shadow-sm border border-gray-200 hover:shadow-md transition-shadow">
                       <div className="flex justify-between items-start">
                         <div className="flex-1">
@@ -839,8 +833,7 @@ If a field is missing, leave it blank.`;
                         </button>
                       </div>
                     </div>
-                  );
-                })}
+                ))}
               </div>
             </div>
           )}
