@@ -383,6 +383,10 @@ If a field is missing, leave it blank.`;
         return;
       }
       
+      if (!cardData || Object.keys(cardData).length === 0) {
+        throw new Error('Card data is required');
+      }
+      
       setError('');
       setSuccess('Adding to Google Contacts...');
       
@@ -392,7 +396,7 @@ If a field is missing, leave it blank.`;
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(cardData),
+        body: JSON.stringify({ card: cardData }), // Wrap cardData in an object with 'card' key
       });
 
       if (!response.ok) {
@@ -511,21 +515,6 @@ If a field is missing, leave it blank.`;
             </div>
           </div>
           
-          {listedCards.length > 0 && (
-            <div className="mt-8">
-              <h3 className="text-lg font-medium text-gray-900 mb-4">Your Cards ({listedCards.length})</h3>
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                {listedCards.map((card, index) => (
-                  <div key={index} className="bg-white p-4 rounded-lg shadow-sm border border-gray-200">
-                    <h4 className="font-medium text-gray-900">{card.name || 'No Name'}</h4>
-                    {card.company && <p className="text-sm text-gray-600">{card.company}</p>}
-                    {card.email && <p className="text-sm text-blue-600">{card.email}</p>}
-                    {card.phone && <p className="text-sm text-gray-600">{card.phone}</p>}
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
         </div>
       )}
 
@@ -725,33 +714,39 @@ If a field is missing, leave it blank.`;
                   ))}
                 </div>
 
-                <div className="space-y-4">
+                <div className="flex flex-wrap gap-4">
                   <button
                     onClick={handleExportToSheets}
-                    className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-6 rounded-lg transition-colors duration-200 flex items-center justify-center gap-2"
+                    disabled={processedCards.length === 0 || isSaving}
+                    className="flex-1 min-w-[200px] flex items-center justify-center gap-2 px-6 py-3 bg-green-600 hover:bg-green-700 text-white font-medium rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    Save to Google Sheet ({processedCards.length})
+                    {isSaving ? (
+                      <>
+                        <Loader2 className="w-5 h-5 animate-spin" />
+                        Saving...
+                      </>
+                    ) : (
+                      'Save to Google Sheets'
+                    )}
                   </button>
+
                   <button
-                    onClick={() => {
-                      processedCards.forEach(card => handleAddToContacts(card.data));
-                    }}
-                    className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-6 rounded-lg transition-colors duration-200 flex items-center justify-center gap-2"
+                    onClick={handleClearAll}
+                    disabled={processedCards.length === 0}
+                    className="flex-1 min-w-[200px] flex items-center justify-center gap-2 px-6 py-3 bg-red-100 hover:bg-red-200 text-red-700 font-medium rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    <UserPlus className="w-5 h-5" />
-                    Add to Google Contacts
+                    <Trash2 className="w-5 h-5" />
+                    Clear All
                   </button>
+
                   <button
                     onClick={listAllCards}
                     disabled={isListing}
-                    className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-6 rounded-lg transition-colors duration-200 flex items-center justify-center gap-2 disabled:opacity-70"
+                    className="flex-1 min-w-[200px] flex items-center justify-center gap-2 px-6 py-3 bg-blue-100 hover:bg-blue-200 text-blue-700 font-medium rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     {isListing ? (
                       <>
-                        <svg className="animate-spin -ml-1 mr-2 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                        </svg>
+                        <Loader2 className="w-5 h-5 animate-spin" />
                         Loading...
                       </>
                     ) : (
@@ -769,7 +764,37 @@ If a field is missing, leave it blank.`;
             )}
           </div>
 
-          <div className="text-center text-sm text-slate-500">
+          {/* Display Listed Cards */}
+          {listedCards.length > 0 && (
+            <div className="mt-8">
+              <h3 className="text-lg font-semibold text-slate-800 mb-4">Your Cards ({listedCards.length})</h3>
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                {listedCards.map((card, index) => (
+                  <div key={card.id || index} className="bg-white p-4 rounded-lg shadow-sm border border-gray-200">
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <h4 className="font-medium text-gray-900">{card.data?.name || 'No Name'}</h4>
+                        {card.data?.company && <p className="text-sm text-gray-600">{card.data.company}</p>}
+                        {card.data?.job_title && <p className="text-sm text-gray-500">{card.data.job_title}</p>}
+                        {card.data?.email && <p className="text-sm text-blue-600 mt-1">{card.data.email}</p>}
+                        {card.data?.phone && <p className="text-sm text-gray-700 mt-1">{card.data.phone}</p>}
+                        {card.data?.website && <p className="text-sm text-blue-500 mt-1">{card.data.website}</p>}
+                      </div>
+                      <button
+                        onClick={() => handleAddToContacts(card.data)}
+                        className="p-2 text-blue-600 hover:bg-blue-50 rounded-full"
+                        title="Add to contacts"
+                      >
+                        <UserPlus className="w-5 h-5" />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          <div className="text-center text-sm text-slate-500 mt-8">
             <p>All extracted data is stored in your browser session</p>
           </div>
         </div>
