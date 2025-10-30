@@ -43,11 +43,10 @@ const REDIRECT_URI = process.env.NODE_ENV === 'production'
   : 'http://localhost:3001/api/oauth2callback';
 
 const oauth2Client = new google.auth.OAuth2(
-  '1062550229129-81opr2ult1q4a3a6ummg9ooil14l35l8.apps.googleusercontent.com',
-  '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',
-  REDIRECT_URI
-);
-
+      process.env.GOOGLE_CLIENT_ID,
+      process.env.GOOGLE_CLIENT_SECRET,
+      REDIRECT_URI
+    );
 // Add to Contacts Route
 app.post('/api/add-to-contacts', verifySession, async (req, res) => {
   try {
@@ -60,8 +59,8 @@ app.post('/api/add-to-contacts', verifySession, async (req, res) => {
 
     // Recreate OAuth client from session tokens
     const client = new google.auth.OAuth2(
-      '1062550229129-81opr2ult1q4a3a6ummg9ooil14l35l8.apps.googleusercontent.com',
-      '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',
+      process.env.GOOGLE_CLIENT_ID,
+      process.env.GOOGLE_CLIENT_SECRET,
       REDIRECT_URI
     );
     client.setCredentials(req.session.tokens);
@@ -139,8 +138,8 @@ app.get('/api/oauth2callback', async (req, res) => {
 
     // Create a new OAuth client for this request
     const client = new google.auth.OAuth2(
-      '1062550229129-81opr2ult1q4a3a6ummg9ooil14l35l8.apps.googleusercontent.com',
-      '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',
+      process.env.GOOGLE_CLIENT_ID,
+      process.env.GOOGLE_CLIENT_SECRET,
       REDIRECT_URI
     );
 
@@ -306,8 +305,8 @@ app.post('/api/save-to-sheets', verifySession, async (req, res) => {
 
     // Recreate OAuth client from session tokens
     const client = new google.auth.OAuth2(
-      '1062550229129-81opr2ult1q4a3a6ummg9ooil14l35l8.apps.googleusercontent.com',
-      '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',
+      process.env.GOOGLE_CLIENT_ID,
+      process.env.GOOGLE_CLIENT_SECRET,
       REDIRECT_URI
     );
     client.setCredentials(req.session.tokens);
