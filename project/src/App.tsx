@@ -36,6 +36,7 @@ function App() {
   const streamRef = useRef<MediaStream | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [isCapturing, setIsCapturing] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   const [processedCards, setProcessedCards] = useState<ProcessedCard[]>([]);
   const [error, setError] = useState<string>('');
   const [success, setSuccess] = useState<string>('');
@@ -61,8 +62,8 @@ function App() {
     return () => window.removeEventListener('message', handleMessage);
   }, []);
 
-  // API base URL - use Vite proxy in development (empty -> relative paths), production uses root
-  const API_BASE_URL = import.meta.env.DEV ? '' : '';
+  // API base URL - point to backend server in development
+  const API_BASE_URL = import.meta.env.DEV ? 'http://localhost:3001' : '';
 
   const checkAuth = async () => {
     try {
@@ -453,29 +454,6 @@ If a field is missing, leave it blank.`;
                     Sign in with Google
                   </button>
                   
-                  <button
-                    onClick={listAllCards}
-                    disabled={isListing}
-                    className="w-full bg-green-600 hover:bg-green-700 text-white font-semibold py-3 px-6 rounded-lg transition-colors duration-200 flex items-center justify-center gap-2 disabled:opacity-70"
-                  >
-                    {isListing ? (
-                      <>
-                        <svg className="animate-spin -ml-1 mr-2 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                        </svg>
-                        Loading...
-                      </>
-                    ) : (
-                      <>
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                          <path d="M9 2a1 1 0 000 2h2a1 1 0 100-2H9z" />
-                          <path fillRule="evenodd" d="M4 5a2 2 0 012-2 3 3 0 003 3h2a3 3 0 003-3 2 2 0 012 2v11a2 2 0 01-2 2H6a2 2 0 01-2-2V5zm3 4a1 1 0 000 2h.01a1 1 0 100-2H7zm3 0a1 1 0 000 2h3a1 1 0 100-2h-3zm-3 4a1 1 0 100 2h.01a1 1 0 100-2H7zm3 0a1 1 0 100 2h3a1 1 0 100-2h-3z" clipRule="evenodd" />
-                        </svg>
-                        List All Cards
-                      </>
-                    )}
-                  </button>
                 </div>
         </div>
       )}
@@ -745,6 +723,29 @@ If a field is missing, leave it blank.`;
                   >
                     <UserPlus className="w-5 h-5" />
                     Add to Google Contacts
+                  </button>
+                  <button
+                    onClick={listAllCards}
+                    disabled={isListing}
+                    className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-6 rounded-lg transition-colors duration-200 flex items-center justify-center gap-2 disabled:opacity-70"
+                  >
+                    {isListing ? (
+                      <>
+                        <svg className="animate-spin -ml-1 mr-2 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                        Loading...
+                      </>
+                    ) : (
+                      <>
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                          <path d="M9 2a1 1 0 000 2h2a1 1 0 100-2H9z" />
+                          <path fillRule="evenodd" d="M4 5a2 2 0 012-2 3 3 0 003 3h2a3 3 0 003-3 2 2 0 012 2v11a2 2 0 01-2 2H6a2 2 0 01-2-2V5zm3 4a1 1 0 000 2h.01a1 1 0 100-2H7zm3 0a1 1 0 000 2h3a1 1 0 100-2h-3zm-3 4a1 1 0 100 2h.01a1 1 0 100-2H7zm3 0a1 1 0 100 2h3a1 1 0 100-2h-3z" clipRule="evenodd" />
+                        </svg>
+                        List All Cards
+                      </>
+                    )}
                   </button>
                 </div>
               </div>
