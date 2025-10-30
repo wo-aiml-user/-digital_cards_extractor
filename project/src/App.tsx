@@ -396,19 +396,25 @@ If a field is missing, leave it blank.`;
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ card: cardData }), // Wrap cardData in an object with 'card' key
+        body: JSON.stringify({ cardData }), // Updated to match backend expectation
       });
-
+      
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
         throw new Error(errorData.error || 'Failed to add to contacts');
       }
-
+      
       const result = await response.json();
+      
+      // Redirect to Google Contacts after successful addition
       if (result.contactUrl) {
-        // Open the contact in a new tab
         window.open(result.contactUrl, '_blank');
+      } else {
+        // Fallback to Google Contacts main page if no specific contact URL is provided
+        window.open('https://contacts.google.com', '_blank');
       }
+      
+      setSuccess('Contact added successfully!');
       
       setSuccess('Successfully added to Google Contacts!');
     } catch (err) {
@@ -769,27 +775,72 @@ If a field is missing, leave it blank.`;
             <div className="mt-8">
               <h3 className="text-lg font-semibold text-slate-800 mb-4">Your Cards ({listedCards.length})</h3>
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                {listedCards.map((card, index) => (
-                  <div key={card.id || index} className="bg-white p-4 rounded-lg shadow-sm border border-gray-200">
-                    <div className="flex justify-between items-start">
-                      <div>
-                        <h4 className="font-medium text-gray-900">{card.data?.name || 'No Name'}</h4>
-                        {card.data?.company && <p className="text-sm text-gray-600">{card.data.company}</p>}
-                        {card.data?.job_title && <p className="text-sm text-gray-500">{card.data.job_title}</p>}
-                        {card.data?.email && <p className="text-sm text-blue-600 mt-1">{card.data.email}</p>}
-                        {card.data?.phone && <p className="text-sm text-gray-700 mt-1">{card.data.phone}</p>}
-                        {card.data?.website && <p className="text-sm text-blue-500 mt-1">{card.data.website}</p>}
+                {listedCards.map((card, index) => {
+                  // Skip cards with template data
+                  const isTemplate = card.data?.name === 'YOUR NAME' || 
+                                   card.data?.email === 'your email goes here';
+                  if (isTemplate) return null;
+                  
+                  return (
+                    <div key={card.id || index} className="bg-white p-4 rounded-lg shadow-sm border border-gray-200 hover:shadow-md transition-shadow">
+                      <div className="flex justify-between items-start">
+                        <div className="flex-1">
+                          <h4 className="font-medium text-gray-900">{card.data?.name || 'No Name'}</h4>
+                          {card.data?.company && <p className="text-sm text-gray-600">{card.data.company}</p>}
+                          {card.data?.job_title && <p className="text-sm text-gray-500">{card.data.job_title}</p>}
+                          
+                          <div className="mt-2 space-y-1">
+                            {card.data?.email && (
+                              <p className="text-sm">
+                                <span className="text-gray-500">Email: </span>
+                                <a href={`mailto:${card.data.email}`} className="text-blue-600 hover:underline">
+                                  {card.data.email}
+                                </a>
+                              </p>
+                            )}
+                            
+                            {card.data?.phone && (
+                              <p className="text-sm">
+                                <span className="text-gray-500">Phone: </span>
+                                <a href={`tel:${card.data.phone.replace(/[^0-9+]/g, '')}`} className="text-gray-700">
+                                  {card.data.phone}
+                                </a>
+                              </p>
+                            )}
+                            
+                            {card.data?.website && (
+                              <p className="text-sm">
+                                <span className="text-gray-500">Website: </span>
+                                <a 
+                                  href={card.data.website.startsWith('http') ? card.data.website : `https://${card.data.website}`} 
+                                  target="_blank" 
+                                  rel="noopener noreferrer"
+                                  className="text-blue-500 hover:underline"
+                                >
+                                  {card.data.website}
+                                </a>
+                              </p>
+                            )}
+                            
+                            {card.data?.address && (
+                              <p className="text-sm text-gray-600 mt-1">
+                                {card.data.address}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                        
+                        <button
+                          onClick={() => handleAddToContacts(card.data)}
+                          className="ml-2 p-2 text-blue-600 hover:bg-blue-50 rounded-full transition-colors"
+                          title="Add to contacts"
+                        >
+                          <UserPlus className="w-5 h-5" />
+                        </button>
                       </div>
-                      <button
-                        onClick={() => handleAddToContacts(card.data)}
-                        className="p-2 text-blue-600 hover:bg-blue-50 rounded-full"
-                        title="Add to contacts"
-                      >
-                        <UserPlus className="w-5 h-5" />
-                      </button>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
           )}
