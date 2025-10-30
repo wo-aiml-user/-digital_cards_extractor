@@ -44,6 +44,7 @@ function App() {
   const [user, setUser] = useState<User | null>(null);
   const [showSignInModal, setShowSignInModal] = useState(false);
   const [isCameraOpen, setIsCameraOpen] = useState(false);
+  const [cameraError, setCameraError] = useState<string>('');
   const [listedCards, setListedCards] = useState<any[]>([]);
   const [isListing, setIsListing] = useState(false);
 
@@ -198,20 +199,32 @@ If a field is missing, leave it blank.`;
   };
 
   const capturePhoto = async () => {
-    if (!videoRef.current) return;
+    if (!videoRef.current) {
+      setCameraError('Video element not found');
+      return;
+    }
+    
     try {
       setIsCapturing(true);
+      setCameraError('');
+      
       const video = videoRef.current;
       const canvas = document.createElement('canvas');
       canvas.width = video.videoWidth || 1280;
       canvas.height = video.videoHeight || 720;
       const ctx = canvas.getContext('2d');
-      if (!ctx) throw new Error('Canvas not supported');
+      
+      if (!ctx) {
+        throw new Error('Canvas not supported');
+      }
+      
       ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
       const dataUrl = canvas.toDataURL('image/jpeg', 0.92);
 
       // Convert dataURL to File
       const res = await fetch(dataUrl);
+      if (!res.ok) throw new Error('Failed to process image');
+      
       const blob = await res.blob();
       const file = new File([blob], `camera-card-${Date.now()}.jpg`, { type: 'image/jpeg' });
 
@@ -369,24 +382,31 @@ If a field is missing, leave it blank.`;
         setShowSignInModal(true);
         return;
       }
-
+      
       setError('');
+      setSuccess('Adding to Google Contacts...');
+      
       const response = await fetch(`${API_BASE_URL}/api/add-to-contacts`, {
         method: 'POST',
+        credentials: 'include',
         headers: {
           'Content-Type': 'application/json',
         },
-        credentials: 'include',
-        body: JSON.stringify({ cardData }),
+        body: JSON.stringify(cardData),
       });
 
-      const result = await response.json();
-
       if (!response.ok) {
-        throw new Error(result.error || 'Failed to add to contacts');
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Failed to add to contacts');
       }
 
-      setSuccess('Contact added to Google Contacts');
+      const result = await response.json();
+      if (result.contactUrl) {
+        // Open the contact in a new tab
+        window.open(result.contactUrl, '_blank');
+      }
+      
+      setSuccess('Successfully added to Google Contacts!');
     } catch (err) {
       console.error('Error adding to contacts:', err);
       setError(err instanceof Error ? err.message : 'Failed to add to contacts');
@@ -395,41 +415,38 @@ If a field is missing, leave it blank.`;
 
   const listAllCards = async () => {
     setIsListing(true);
+    setError('');
+    
     try {
-      const apiUrl = `${API_BASE_URL}/api/list-all-cards`;
-      
-      const response = await fetch(apiUrl, {
+      const response = await fetch(`${API_BASE_URL}/api/list-cards`, {
         method: 'GET',
+        credentials: 'include',
         headers: {
-          'Content-Type': 'application/json',
           'Accept': 'application/json',
         },
-        credentials: 'include',
       });
 
-      let result;
-      try {
-        result = await response.clone().json();
-      } catch (parseError) {
-        console.error('Error parsing response:', parseError);
-        const text = await response.text();
-        console.error('Response text:', text);
-        throw new Error('Invalid response from server');
-      }
-
       if (!response.ok) {
-        throw new Error(result?.error || `Failed to list all cards: ${response.statusText}`);
+        const errorText = await response.text();
+        try {
+          const errorData = JSON.parse(errorText);
+          throw new Error(errorData.error || 'Failed to fetch cards');
+        } catch (e) {
+          throw new Error(`Server error: ${response.status} ${response.statusText}`);
+        }
       }
 
-      if (!result) {
-        throw new Error('No response received from server');
+      const result = await response.json();
+      if (result && Array.isArray(result.cards)) {
+        setListedCards(result.cards);
+        setSuccess(`Successfully loaded ${result.cards.length} cards`);
+      } else {
+        setListedCards([]);
+        setSuccess('No cards found');
       }
-
-      setProcessedCards(result.cards);
-      setSuccess('Successfully listed all cards');
     } catch (err) {
-      console.error('Error listing all cards:', err);
-      setError(err instanceof Error ? err.message : 'Failed to list all cards');
+      console.error('Error listing cards:', err);
+      setError(err instanceof Error ? err.message : 'Failed to fetch cards');
     } finally {
       setIsListing(false);
     }
