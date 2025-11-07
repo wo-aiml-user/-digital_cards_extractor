@@ -291,15 +291,6 @@ If a field is missing, leave it blank.`;
       setError('');
       setSuccess('');
 
-      // First, check if we have a valid session
-      const sessionCheck = await fetch(`${API_BASE_URL}/api/check-session`, {
-        credentials: 'include',
-      });
-
-      if (!sessionCheck.ok) {
-        throw new Error('Session expired. Please sign in again.');
-      }
-
       // Fetch all cards from the user's sheet
       const response = await fetch(`${API_BASE_URL}/api/cards`, {
         credentials: 'include',
