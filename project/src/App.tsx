@@ -292,7 +292,7 @@ If a field is missing, leave it blank.`;
       setSuccess('');
 
       // Fetch all cards from the user's sheet
-      const response = await fetch(`${API_BASE_URL}/api/cards`, {
+      const response = await fetch(`${API_BASE_URL}/api/list-cards`, {
         credentials: 'include',
         headers: {
           'Accept': 'application/json',
