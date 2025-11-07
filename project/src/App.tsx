@@ -1,7 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { Upload, Camera, Loader2, CheckCircle, AlertCircle, X, Trash2, UserPlus } from 'lucide-react';
 import { GoogleGenerativeAI } from '@google/generative-ai';
-import CameraCapture from './CameraCapture';
 
 interface CardData {
   name: string;
@@ -32,11 +31,7 @@ interface User {
 const genAI = new GoogleGenerativeAI(import.meta.env.VITE_GOOGLE_API_KEY || '');
 
 function App() {
-  const videoRef = useRef<HTMLVideoElement>(null);
-  const streamRef = useRef<MediaStream | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
-  const [isCapturing, setIsCapturing] = useState(false);
-  const [isSaving, setIsSaving] = useState(false);
   const [processedCards, setProcessedCards] = useState<ProcessedCard[]>([]);
   const [error, setError] = useState<string>('');
   const [success, setSuccess] = useState<string>('');
@@ -754,4 +749,3 @@ If a field is missing, leave it blank.`;
 }
 
 export default App;
-
