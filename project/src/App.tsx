@@ -288,21 +288,46 @@ If a field is missing, leave it blank.`;
         return;
       }
 
+      setError('');
+      setSuccess('');
+
+      // First, check if we have a valid session
+      const sessionCheck = await fetch(`${API_BASE_URL}/api/check-session`, {
+        credentials: 'include',
+      });
+
+      if (!sessionCheck.ok) {
+        throw new Error('Session expired. Please sign in again.');
+      }
+
       // Fetch all cards from the user's sheet
       const response = await fetch(`${API_BASE_URL}/api/cards`, {
         credentials: 'include',
         headers: {
+          'Accept': 'application/json',
           'Content-Type': 'application/json',
         },
       });
 
-      if (!response.ok) {
-        throw new Error('Failed to fetch cards');
+      // Check if response is JSON
+      const contentType = response.headers.get('content-type');
+      if (!contentType || !contentType.includes('application/json')) {
+        const text = await response.text();
+        if (text.includes('<html>') || text.includes('<!DOCTYPE')) {
+          throw new Error('Authentication required. Please sign in again.');
+        }
+        throw new Error('Invalid response format from server');
       }
 
-      const allCards = await response.json();
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({}));
+        throw new Error(error.message || 'Failed to fetch cards');
+      }
+
+      const result = await response.json();
+      const allCards = result.cards || [];
       
-      if (!allCards || allCards.length === 0) {
+      if (allCards.length === 0) {
         setError('No cards found to export');
         return;
       }
@@ -313,23 +338,27 @@ If a field is missing, leave it blank.`;
         'Website', 'Address', 'Social Links', 'Timestamp'
       ];
       
-      // Map card data to CSV rows
-      const rows = allCards.map((card: ProcessedCard) => [
-        `"${card.data?.name || ''}"`,
-        `"${card.data?.company || ''}"`,
-        `"${card.data?.job_title || ''}"`,
-        `"${card.data?.email || ''}"`,
-        `"${card.data?.phone || ''}"`,
-        `"${card.data?.website || ''}"`,
-        `"${card.data?.address || ''}"`,
-        `"${(card.data?.social_links || []).join(', ')}"`,
-        `"${card.timestamp || new Date().toISOString()}"`
-      ]);
+      // Map card data to CSV rows, handling both string and object data
+      const rows = allCards.map((card: any) => {
+        // Handle case where data might be a string that needs parsing
+        const cardData = typeof card.data === 'string' ? JSON.parse(card.data) : (card.data || {});
+        return [
+          `"${cardData.name || ''}"`,
+          `"${cardData.company || ''}"`,
+          `"${cardData.job_title || ''}"`,
+          `"${cardData.email || ''}"`,
+          `"${cardData.phone || ''}"`,
+          `"${cardData.website || ''}"`,
+          `"${cardData.address || ''}"`,
+          `"${(Array.isArray(cardData.social_links) ? cardData.social_links : []).join(', ')}"`,
+          `"${card.timestamp || new Date().toISOString()}"`
+        ];
+      });
       
-      // Create CSV content
-      const csvContent = [
+      // Create CSV content with BOM for Excel compatibility
+      const csvContent = '\uFEFF' + [
         headers.join(','),
-        ...rows
+        ...rows.map((row: string[]) => row.join(','))
       ].join('\n');
       
       // Create and trigger download
@@ -342,13 +371,11 @@ If a field is missing, leave it blank.`;
       link.click();
       document.body.removeChild(link);
       
-      setSuccess(`Exported ${allCards.length} cards to CSV`);
+      setSuccess(`Successfully exported ${allCards.length} cards to CSV`);
     } catch (err) {
       console.error('Export failed:', err);
-      setError('Failed to export cards. Please try again.');
+      setError(err instanceof Error ? err.message : 'Failed to export cards. Please try again.');
     }
-    
-    setSuccess('CSV file downloaded successfully!');
   };
 
   const handleClearAll = () => {
@@ -448,7 +475,7 @@ If a field is missing, leave it blank.`;
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
       {/* Fixed Sign In Button - Top Left */}
       {!user && (
-        <div className="fixed top-4 left-4 z-50">
+        <div className="fixed top-4 right-4 z-50">
           <button
             onClick={handleGoogleSignIn}
             className="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-lg transition-colors duration-200 flex items-center justify-center gap-2 text-sm"
