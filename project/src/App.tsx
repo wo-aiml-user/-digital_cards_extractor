@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
-import { Upload, Camera, Loader2, CheckCircle, AlertCircle, X, Trash2, UserPlus } from 'lucide-react';
+import { Upload, Loader2, CheckCircle, AlertCircle, X, Trash2, UserPlus } from 'lucide-react';
+
 import { GoogleGenerativeAI } from '@google/generative-ai';
 
 interface CardData {
@@ -726,24 +727,15 @@ If a field is missing, leave it blank.`;
                       </div>
                     </div>
                 ))}
+                </div>
               </div>
-            </div>
-          )}
-
-          <div className="text-center text-sm text-slate-500 mt-8">
-            <p>All extracted data is stored in your browser session</p>
+            )}
           </div>
         </div>
+      
+      <div className="text-center text-sm text-slate-500 mt-8">
+        <p>All extracted data is stored in your browser session</p>
       </div>
-      {/* Camera Capture Modal */}
-      {isCameraOpen && (
-        <div className="fixed inset-0 z-50 bg-black">
-          <CameraCapture
-            onCancel={() => setIsCameraOpen(false)}
-            onCaptureComplete={handleCameraCapture}
-          />
-        </div>
-      )}
     </div>
   );
 }
