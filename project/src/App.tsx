@@ -281,43 +281,72 @@ If a field is missing, leave it blank.`;
     }
   };
 
-  const handleExportToCSV = () => {
-    if (processedCards.length === 0) return;
-    
-    // Define CSV headers
-    const headers = [
-      'Name', 'Company', 'Job Title', 'Email', 'Phone', 
-      'Website', 'Address', 'Social Links', 'Timestamp'
-    ];
-    
-    // Map card data to CSV rows
-    const rows = processedCards.map(card => [
-      `"${card.data.name || ''}"`,
-      `"${card.data.company || ''}"`,
-      `"${card.data.job_title || ''}"`,
-      `"${card.data.email || ''}"`,
-      `"${card.data.phone || ''}"`,
-      `"${card.data.website || ''}"`,
-      `"${card.data.address || ''}"`,
-      `"${(card.data.social_links || []).join(', ')}"`,
-      `"${card.timestamp || new Date().toISOString()}"`
-    ]);
-    
-    // Create CSV content
-    const csvContent = [
-      headers.join(','),
-      ...rows
-    ].join('\n');
-    
-    // Create and trigger download
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.setAttribute('href', url);
-    link.setAttribute('download', `business_cards_${new Date().toISOString().split('T')[0]}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+  const handleExportToCSV = async () => {
+    try {
+      if (!user) {
+        setError('Please sign in to export cards');
+        return;
+      }
+
+      // Fetch all cards from the user's sheet
+      const response = await fetch(`${API_BASE_URL}/api/cards`, {
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch cards');
+      }
+
+      const allCards = await response.json();
+      
+      if (!allCards || allCards.length === 0) {
+        setError('No cards found to export');
+        return;
+      }
+
+      // Define CSV headers
+      const headers = [
+        'Name', 'Company', 'Job Title', 'Email', 'Phone', 
+        'Website', 'Address', 'Social Links', 'Timestamp'
+      ];
+      
+      // Map card data to CSV rows
+      const rows = allCards.map((card: ProcessedCard) => [
+        `"${card.data?.name || ''}"`,
+        `"${card.data?.company || ''}"`,
+        `"${card.data?.job_title || ''}"`,
+        `"${card.data?.email || ''}"`,
+        `"${card.data?.phone || ''}"`,
+        `"${card.data?.website || ''}"`,
+        `"${card.data?.address || ''}"`,
+        `"${(card.data?.social_links || []).join(', ')}"`,
+        `"${card.timestamp || new Date().toISOString()}"`
+      ]);
+      
+      // Create CSV content
+      const csvContent = [
+        headers.join(','),
+        ...rows
+      ].join('\n');
+      
+      // Create and trigger download
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.setAttribute('href', url);
+      link.setAttribute('download', `business_cards_${new Date().toISOString().split('T')[0]}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      
+      setSuccess(`Exported ${allCards.length} cards to CSV`);
+    } catch (err) {
+      console.error('Export failed:', err);
+      setError('Failed to export cards. Please try again.');
+    }
     
     setSuccess('CSV file downloaded successfully!');
   };
@@ -417,7 +446,7 @@ If a field is missing, leave it blank.`;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
-      {/* Fixed Sign In Button - Top Right */}
+      {/* Fixed Sign In Button - Top Left */}
       {!user && (
         <div className="fixed top-4 left-4 z-50">
           <button
