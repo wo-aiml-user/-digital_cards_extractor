@@ -288,21 +288,30 @@ If a field is missing, leave it blank.`;
         return;
       }
 
-      // Fetch all cards from the user's sheet
+      setIsProcessing(true);
+      setError('');
+      setSuccess('');
+
+      // First, try to fetch all cards from the API
       const response = await fetch(`${API_BASE_URL}/api/cards`, {
         credentials: 'include',
         headers: {
+          'Accept': 'application/json',
           'Content-Type': 'application/json',
         },
       });
 
-      if (!response.ok) {
-        throw new Error('Failed to fetch cards');
+      // Check if the response is JSON
+      const contentType = response.headers.get('content-type');
+      if (!contentType || !contentType.includes('application/json')) {
+        const text = await response.text();
+        throw new Error('Invalid response format from server');
       }
 
-      const allCards = await response.json();
+      const result = await response.json();
+      const allCards = result.cards || [];
       
-      if (!allCards || allCards.length === 0) {
+      if (allCards.length === 0) {
         setError('No cards found to export');
         return;
       }
@@ -313,18 +322,22 @@ If a field is missing, leave it blank.`;
         'Website', 'Address', 'Social Links', 'Timestamp'
       ];
       
-      // Map card data to CSV rows
-      const rows = allCards.map((card: ProcessedCard) => [
-        `"${card.data?.name || ''}"`,
-        `"${card.data?.company || ''}"`,
-        `"${card.data?.job_title || ''}"`,
-        `"${card.data?.email || ''}"`,
-        `"${card.data?.phone || ''}"`,
-        `"${card.data?.website || ''}"`,
-        `"${card.data?.address || ''}"`,
-        `"${(card.data?.social_links || []).join(', ')}"`,
-        `"${card.timestamp || new Date().toISOString()}"`
-      ]);
+      // Map card data to CSV rows, ensuring we handle both string and object data
+      const rows = allCards.map((card: any) => {
+        // Handle case where data might be a string that needs parsing
+        const cardData = typeof card.data === 'string' ? JSON.parse(card.data) : (card.data || {});
+        return [
+          `"${cardData.name || ''}"`,
+          `"${cardData.company || ''}"`,
+          `"${cardData.job_title || ''}"`,
+          `"${cardData.email || ''}"`,
+          `"${cardData.phone || ''}"`,
+          `"${cardData.website || ''}"`,
+          `"${cardData.address || ''}"`,
+          `"${(Array.isArray(cardData.social_links) ? cardData.social_links : []).join(', ')}"`,
+          `"${card.timestamp || new Date().toISOString()}"`
+        ];
+      });
       
       // Create CSV content
       const csvContent = [
@@ -345,10 +358,10 @@ If a field is missing, leave it blank.`;
       setSuccess(`Exported ${allCards.length} cards to CSV`);
     } catch (err) {
       console.error('Export failed:', err);
-      setError('Failed to export cards. Please try again.');
+      setError(err instanceof Error ? err.message : 'Failed to export cards. Please try again.');
+    } finally {
+      setIsProcessing(false);
     }
-    
-    setSuccess('CSV file downloaded successfully!');
   };
 
   const handleClearAll = () => {
@@ -445,13 +458,13 @@ If a field is missing, leave it blank.`;
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
-      {/* Fixed Sign In Button - Top Left */}
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 relative">
+      {/* Fixed Sign In Button - Top Right */}
       {!user && (
-        <div className="fixed top-4 left-4 z-50">
+        <div className="fixed top-4 right-4 z-50">
           <button
             onClick={handleGoogleSignIn}
-            className="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-lg transition-colors duration-200 flex items-center justify-center gap-2 text-sm"
+            className="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-lg transition-colors duration-200 flex items-center justify-center gap-2 text-sm whitespace-nowrap"
           >
             <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
               <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
@@ -464,8 +477,37 @@ If a field is missing, leave it blank.`;
         </div>
       )}
 
-      <div className="container mx-auto px-4 py-12">
+      <div className="container mx-auto px-4 py-4 sm:py-8 md:py-12">
         <div className="max-w-6xl mx-auto">
+          {/* Status Messages */}
+          {(error || success) && (
+            <div className="mb-6">
+              {error && (
+                <div className="bg-red-50 border-l-4 border-red-500 p-4 mb-4">
+                  <div className="flex">
+                    <div className="flex-shrink-0">
+                      <AlertCircle className="h-5 w-5 text-red-500" />
+                    </div>
+                    <div className="ml-3">
+                      <p className="text-sm text-red-700">{error}</p>
+                    </div>
+                  </div>
+                </div>
+              )}
+              {success && (
+                <div className="bg-green-50 border-l-4 border-green-500 p-4">
+                  <div className="flex">
+                    <div className="flex-shrink-0">
+                      <CheckCircle className="h-5 w-5 text-green-500" />
+                    </div>
+                    <div className="ml-3">
+                      <p className="text-sm text-green-700">{success}</p>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
           {/* Header with User Info */}
           <div className="flex items-center justify-between mb-8">
             <div className="text-center flex-1">
@@ -575,130 +617,9 @@ If a field is missing, leave it blank.`;
                           className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
                           title="Remove card"
                         >
-                          <X className="w-5 h-5" />
+                          <X className="w-4 h-4" />
                         </button>
                       </div>
-
-                      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                        <div className="lg:col-span-1">
-                          <div className="rounded-lg overflow-hidden border border-slate-300 bg-white">
-                            <img
-                              src={card.previewUrl}
-                              alt="Business card"
-                              className="w-full h-auto object-contain"
-                            />
-                          </div>
-                        </div>
-
-                        <div className="lg:col-span-2">
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                            {card.data.name && (
-                              <div className="p-3 bg-white rounded-lg border border-slate-200">
-                                <p className="text-xs font-medium text-slate-500 uppercase mb-1">Name</p>
-                                <p className="text-slate-800 text-sm">{card.data.name}</p>
-                              </div>
-                            )}
-                            {card.data.company && (
-                              <div className="p-3 bg-white rounded-lg border border-slate-200">
-                                <p className="text-xs font-medium text-slate-500 uppercase mb-1">Company</p>
-                                <p className="text-slate-800 text-sm">{card.data.company}</p>
-                              </div>
-                            )}
-                            {card.data.job_title && (
-                              <div className="p-3 bg-white rounded-lg border border-slate-200">
-                                <p className="text-xs font-medium text-slate-500 uppercase mb-1">Job Title</p>
-                                <p className="text-slate-800 text-sm">{card.data.job_title}</p>
-                              </div>
-                            )}
-                            {card.data.email && (
-                              <div className="p-3 bg-white rounded-lg border border-slate-200">
-                                <p className="text-xs font-medium text-slate-500 uppercase mb-1">Email</p>
-                                <p className="text-slate-800 text-sm break-all">{card.data.email}</p>
-                              </div>
-                            )}
-                            {card.data.phone && (
-                              <div className="p-3 bg-white rounded-lg border border-slate-200">
-                                <p className="text-xs font-medium text-slate-500 uppercase mb-1">Phone</p>
-                                <p className="text-slate-800 text-sm">{card.data.phone}</p>
-                              </div>
-                            )}
-                            {card.data.website && (
-                              <div className="p-3 bg-white rounded-lg border border-slate-200">
-                                <p className="text-xs font-medium text-slate-500 uppercase mb-1">Website</p>
-                                <p className="text-slate-800 text-sm break-all">{card.data.website}</p>
-                              </div>
-                            )}
-                            {card.data.address && (
-                              <div className="p-3 bg-white rounded-lg border border-slate-200 md:col-span-2">
-                                <p className="text-xs font-medium text-slate-500 uppercase mb-1">Address</p>
-                                <p className="text-slate-800 text-sm">{card.data.address}</p>
-                              </div>
-                            )}
-                            {card.data.social_links && card.data.social_links.length > 0 && (
-                              <div className="p-3 bg-white rounded-lg border border-slate-200 md:col-span-2">
-                                <p className="text-xs font-medium text-slate-500 uppercase mb-1">Social Links</p>
-                                <p className="text-slate-800 text-sm break-all">{card.data.social_links.join(', ')}</p>
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-
-                <div className="flex flex-wrap gap-4">
-                  <button
-                    onClick={handleExportToSheets}
-                    disabled={processedCards.length === 0}
-                    className="flex-1 min-w-[200px] flex items-center justify-center gap-2 px-6 py-3 bg-green-600 hover:bg-green-700 text-white font-medium rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    Save to Google Sheets
-                  </button>
-
-                  <button
-                    onClick={handleExportToCSV}
-                    disabled={processedCards.length === 0}
-                    className="flex-1 min-w-[200px] flex items-center justify-center gap-2 px-6 py-3 bg-green-600 hover:bg-green-700 text-white font-medium rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                      <path fillRule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clipRule="evenodd" />
-                    </svg>
-                    Export to CSV
-                  </button>
-
-                  <button
-                    onClick={listAllCards}
-                    disabled={isListing}
-                    className="flex-1 min-w-[200px] flex items-center justify-center gap-2 px-6 py-3 bg-blue-100 hover:bg-blue-200 text-blue-700 font-medium rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    {isListing ? (
-                      <>
-                        <Loader2 className="w-5 h-5 animate-spin" />
-                        Loading...
-                      </>
-                    ) : (
-                      <>
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                          <path d="M9 2a1 1 0 000 2h2a1 1 0 100-2H9z" />
-                          <path fillRule="evenodd" d="M4 5a2 2 0 012-2 3 3 0 003 3h2a3 3 0 003-3 2 2 0 012 2v11a2 2 0 01-2 2H6a2 2 0 01-2-2V5zm3 4a1 1 0 000 2h.01a1 1 0 100-2H7zm3 0a1 1 0 000 2h3a1 1 0 100-2h-3zm-3 4a1 1 0 100 2h.01a1 1 0 100-2H7zm3 0a1 1 0 100 2h3a1 1 0 100-2h-3z" clipRule="evenodd" />
-                        </svg>
-                        List All Cards
-                      </>
-                    )}
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* Display Listed Cards */}
-          {listedCards.length > 0 && (
-            <div className="mt-8">
-              <h3 className="text-lg font-semibold text-slate-800 mb-4">Your Cards ({listedCards.length})</h3>
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                {listedCards.map((card, index) => (
-                    <div key={card.id || index} className="bg-white p-4 rounded-lg shadow-sm border border-gray-200 hover:shadow-md transition-shadow">
                       <div className="flex justify-between items-start">
                         <div className="flex-1">
                           <h4 className="font-medium text-gray-900">{card.data?.name || 'No Name'}</h4>
@@ -761,7 +682,7 @@ If a field is missing, leave it blank.`;
             )}
           </div>
         </div>
-      
+      </div>
       <div className="text-center text-sm text-slate-500 mt-8">
         <p>All extracted data is stored in your browser session</p>
       </div>
